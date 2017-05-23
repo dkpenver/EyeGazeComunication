@@ -1,7 +1,7 @@
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
-
+#include "opencv2\opencv.hpp"
 #include <iostream>
 #include <stdio.h>
 
@@ -23,14 +23,14 @@ CascadeClassifier face_cascade;
 CascadeClassifier eyes_cascade;
 string window_name1 = "Capture1 - Face detection";
 string window_name2 = "Capture2 - Face detection";
-
+int HH = 179, HL = 0, VL = 0, VH = 255, SL = 0, SH = 255;
 /** @function main */
 int main(int argc, const char** argv)
 {
 	VideoCapture capture;
 	capture.open(1);
 	Mat frame;
-
+	
 	//-- 1. Load the cascades
 	if (!face_cascade.load(face_cascade_name)) { printf("--(!)Error loading\n"); return -1; };
 	if (!eyes_cascade.load(eyes_cascade_name)) { printf("--(!)Error loading\n"); return -1; };
@@ -62,6 +62,15 @@ int main(int argc, const char** argv)
 /** @function detectAndDisplay */
 void detectAndDisplay(Mat frame)
 {
+
+	namedWindow("control",WINDOW_AUTOSIZE);
+	namedWindow("Origin", WINDOW_AUTOSIZE);
+	createTrackbar("H Low", "control", &HL, 179);
+	createTrackbar("H High", "control", &HH, 179);
+	createTrackbar("S Low", "control", &SL, 255);
+	createTrackbar("S High", "control", &SH, 255);
+	createTrackbar("V Low", "control", &VL, 255);
+	createTrackbar("VHigh", "control", &VH, 255);
 	std::vector<Rect> faces;
 	Mat frame_gray,cannyOut;
 
@@ -91,8 +100,22 @@ void detectAndDisplay(Mat frame)
 				Mat eyeROI1 = faceROI(eyes[0]);
 				Rect cropped((faces[i].x + eyes[0].x), faces[i].y + eyes[0].y, eyes[0].width, eyes[0].height);
 				Mat frameCropped = frame(cropped);
+				Mat HSVImage, eyeWhites,test ,out;
+
+				
+				
+				cvtColor(frameCropped, HSVImage,CV_BGR2HSV);
+				//cvtColor(frameCropped, frameCropped, CV_BGR2Lab);
+
+					inRange(HSVImage, Scalar(HL, SL, VL), Scalar(HH, SH, VH), eyeWhites);
+					cvtColor(frameCropped, out, CV_BGR2GRAY);
+					resize(eyeWhites, eyeWhites, Size(300, 300), 2, 2);
+					resize(out,out, Size(300, 300), 2, 2);
+					addWeighted(out, 1, eyeWhites, .5, 0, test);
+					imshow(window_name1, test);
+					imshow("Origin", eyeWhites);
 				//Mat eyeROI2 = faceROI(eyes[1]);
-				equalizeHist(eyeROI1, eyeROI1);
+				
 
 				/*Mat canny_output;
 				vector<vector<Point> > contours;
@@ -111,18 +134,11 @@ void detectAndDisplay(Mat frame)
 					drawContours(drawing, contours, i, color, 1, 8, hierarchy, 0, Point());
 				}
 				//Canny(eyeROI1, cannyOut, 90, 180);*/
-				//resize(faceROI1, faceROI1, Size(300, 300), 2, 2);
-				imshow(window_name1, frameCropped);
+				//
+				
 				//imshow(window_name2, eyeROI2);
 				//cout << eyes[j] << endl;
 			}
 		}
-
-	}
-	/*int ymin = center[0] - raduis
-	Mat dst = frame(Range(center[0]-radius[0], ymax), Range(xMin, xMax)).clone();
-
-	Range::all() for all of x or y if needed
-	//-- Show what you got*/
-	
+	}	
 }

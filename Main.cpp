@@ -4,6 +4,7 @@
 #include "opencv2\opencv.hpp"
 #include <iostream>
 #include <stdio.h>
+#include <array>
 
 using namespace std;
 using namespace cv;
@@ -13,8 +14,11 @@ int thresh = 25;
 int max_thresh = 255;
 RNG rng(12345);
 Mat frame;
+
 /** Function Headers */
-void detectAndDisplay(Mat& frame);
+void detectFace(Mat& frame);
+void eyeLocation(Mat& frame, Mat& frame_grey, std::vector<Rect> faces);
+
 
 /** Global variables */
 String face_cascade_name = "haarcascade_frontalface_alt.xml";
@@ -27,12 +31,15 @@ CascadeClassifier eyes_cascade_normal;
 CascadeClassifier eyes_cascade_right;
 CascadeClassifier eyes_cascade_left;
 CascadeClassifier smile_cascade;
-string window_name1 = "Capture1 - Face detection";
-string window_name2 = "Capture2 - Face detection";
+std::string window_name1 = "Capture1 - Face detection";
+std::string window_name2 = "Capture2 - Face detection";
+std::string window_name3 = "Capture3 - Face detection";
+
 int HH = 179, HL = 146, VL = 15, VH = 113, SL = 3, SH = 57;
 /** @function main */
 int main(int argc, const char** argv)
 {
+	
 	face_cascade.load(face_cascade_name);
 	eyes_cascade_normal.load(eyes_cascade_normal_name);
 	eyes_cascade_left.load(eyes_cascade_left_name);
@@ -40,9 +47,9 @@ int main(int argc, const char** argv)
 	smile_cascade.load(smile_cascade_name);
 	//VideoCapture::VideoCapture(1);
 	VideoCapture cap;
-
-	cv::Mat frame, eye_tpl;
-	cv::Rect eye_bb;
+	namedWindow("Origin", WINDOW_AUTOSIZE);
+	Mat frame, eye_tpl;
+	Rect eye_bb;
 
 	cap.open(1);
 	
@@ -59,7 +66,7 @@ int main(int argc, const char** argv)
 		//-- 3. Apply the classifier to the frame
 		if (!frame.empty())
 		{
-			detectAndDisplay(frame);
+			detectFace(frame);
 		}
 		else
 		{
@@ -74,92 +81,37 @@ int main(int argc, const char** argv)
 }
 
 /** @function detectAndDisplay */
-void detectAndDisplay(Mat& frame)
+void detectFace(Mat& frame)
 {
-	std::vector<Rect> faces;
+	vector<Rect> faces;
 	Mat frame_gray, cannyOut;
 	cvtColor(frame, frame_gray, CV_BGR2GRAY);
 	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 1, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
 	if (faces.empty() == false) {
-
-		for (size_t i = 0; i < faces.size(); i++)
-		{
-			Point centerFace(faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5);
-			ellipse(frame, centerFace, Size(faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar(255, 0, 255), 4, 8, 0);
-
-			Mat faceROI = frame_gray(faces[i]);
-			std::vector<Rect> eyes;
-
-			//-- In each face, detect eyes
-			eyes_cascade_normal.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-			for (size_t j = 0; j < eyes.size(); j++)
-			{
-				Point eye_center(faces[i].x + eyes[j].x + eyes[j].width / 2, faces[i].y + eyes[j].y + eyes[j].height / 2);
-				int radius = cvRound((eyes[j].width + eyes[j].height)*0.25);
-				circle(frame, eye_center, radius, Scalar(255, 0, 0), 4, 8, 0);
-				int p = j;
-				Rect cropped((faces[i].x + eyes[p].x), (faces[i].y + eyes[p].y + eyes[p].height / 4), eyes[p].width, eyes[p].height*0.5);
-				Mat frameCropped = frame(cropped);
-				Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
-			}
-			eyes_cascade_left.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-			for (size_t j = 0; j < eyes.size(); j++)
-			{
-				Point eye_center(faces[i].x + eyes[j].x + eyes[j].width / 2, faces[i].y + eyes[j].y + eyes[j].height / 2);
-				int radius = cvRound((eyes[j].width + eyes[j].height)*0.25);
-				circle(frame, eye_center, radius, Scalar(0, 255, 0), 4, 8, 0);
-				int p = j;
-				Rect cropped((faces[i].x + eyes[p].x), (faces[i].y + eyes[p].y + eyes[p].height / 4), eyes[p].width, eyes[p].height*0.5);
-				Mat frameCropped = frame(cropped);
-				Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
-			}
-			
-			eyes_cascade_right.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-			for (size_t j = 0; j < eyes.size(); j++)
-			{
-				Point eye_center(faces[i].x + eyes[j].x + eyes[j].width / 2, faces[i].y + eyes[j].y + eyes[j].height / 2);
-				int radius = cvRound((eyes[j].width + eyes[j].height)*0.25);
-				circle(frame, eye_center, radius, Scalar(0, 0, 255), 4, 8, 0);
-				int p = j;
-				Rect cropped((faces[i].x + eyes[p].x), (faces[i].y + eyes[p].y + eyes[p].height / 4), eyes[p].width, eyes[p].height*0.5);
-				Mat frameCropped = frame(cropped);
-				Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
-			}
-			smile_cascade.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-			for (size_t j = 0; j < eyes.size(); j++)
-			{
-				Point eye_center(faces[i].x + eyes[j].x + eyes[j].width / 2, faces[i].y + eyes[j].y + eyes[j].height / 2);
-				int radius = cvRound((eyes[j].width + eyes[j].height)*0.25);
-				circle(frame, eye_center, radius, Scalar(255, 255,0 ), 4, 8, 0);
-				int p = j;
-				Rect cropped((faces[i].x + eyes[p].x), (faces[i].y + eyes[p].y + eyes[p].height / 4), eyes[p].width, eyes[p].height*0.5);
-				Mat frameCropped = frame(cropped);
-				Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
-			}
-			/*if (eyes.empty() == false) {
-				if (eyes.size() >= 2) {
-					int p = 0;
-					for (int j = 1; j < eyes.size(); j++) {
-						if ((faces[i].y + eyes[j].y) < (faces[i].y + eyes[j - 1].y)) {
-							p = j;
-						}
-					}
-					Point centerEye(faces[i].x + eyes[p].x + eyes[p].width*0.5, faces[i].y + eyes[p].y + eyes[p].height*0.5);
-					int radius = cvRound((eyes[p].width + eyes[p].height)*0.25);
-					circle(frame, centerEye,radius, Scalar(255, 0, 0), 4, 8, 0);
-					Mat eyeROI1 = faceROI(eyes[p]);
-					*/
-					
-
-				
-			
-		}
-	}
-			
+		eyeLocation(frame, frame_gray, faces);
 		
-	imshow(window_name1, frame);
+	}
+	
+	/*else {
+		Mat rotated,rotatedFrame;
+		Point2f centre;
+		centre.x = frame.rows / 2;
+		centre.y = frame.cols / 2;
+		namedWindow("Control", WINDOW_NORMAL);
+		for (int angle = 0; angle < 360; angle++) {
+			warpAffine(frame,rotated,getRotationMatrix2D(centre, angle, 1),Size(frame.cols,frame.rows));
+			face_cascade.detectMultiScale(frame_gray, faces, 1.1, 1, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+			
+			cout << angle << endl;
+			angle = angle + 19;
+			if (faces.empty() == false) {
+				warpAffine(frame, rotatedFrame, getRotationMatrix2D(centre, angle, 1), Size(frame.cols, frame.rows));
+				eyeLocation(rotatedFrame, rotated, faces);
+				break;
+			}
+			imshow("Control", rotated);
+		}
+	}*/
 
 
 
@@ -168,7 +120,7 @@ void detectAndDisplay(Mat& frame)
 
 
 
-
+	imshow(window_name3, frame);
 /*
 	namedWindow("control", WINDOW_AUTOSIZE);
 	namedWindow("Origin", WINDOW_AUTOSIZE);
@@ -263,4 +215,190 @@ void detectAndDisplay(Mat& frame)
 			}
 		}
 	}*/
+}
+void eyeLocation(Mat& frame,Mat& frame_gray, std::vector<Rect> faces) {
+	int eyeNormalX[80];
+	int eyeNormalY[80];
+	int eyeNormalRadius[80];
+	int eyeRightX[80];
+	int eyeRightY[80];
+	int eyeRightRadius[80];
+	int eyeLeftX[80];
+	int eyeLeftY[80];
+	int eyeLeftRadius[80];
+	int mouthX[80];
+	int mouthY[80];
+	int mouthRadius[80];
+	int averageHeight[80];
+	int averageWidth[80];
+	for (size_t i = 0; i < faces.size(); i++)
+	{
+		int o = 0;
+		Point centerFace(faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5);
+
+
+		Mat faceROI = frame_gray(faces[i]);
+		vector<Rect> eyes_normal;
+		vector<Rect> eyes_left;
+		vector<Rect> eyes_right;
+		vector<Rect> smile;
+
+		//blue for normal
+		eyes_cascade_normal.detectMultiScale(faceROI, eyes_normal, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+
+		for (size_t j = 0; j < eyes_normal.size(); j++)
+		{
+			eyeNormalX[j] = faces[i].x + eyes_normal[j].x + eyes_normal[j].width / 2;
+			eyeNormalY[j] = faces[i].y + eyes_normal[j].y + eyes_normal[j].height / 2;
+			eyeNormalRadius[j] = (eyes_normal[j].width + eyes_normal[j].height)*0.25;
+
+			Point eye_center_normal(eyeNormalX[j], eyeNormalY[j]);
+			int radius = cvRound(eyeNormalRadius[j]);
+
+			//circle(frame, eye_center_normal, radius, Scalar(255, 0, 0), 4, 8, 0);
+
+
+		}
+
+		//green for left 
+		eyes_cascade_left.detectMultiScale(faceROI, eyes_left, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		for (size_t j = 0; j < eyes_left.size(); j++)
+		{
+			eyeLeftX[j] = faces[i].x + eyes_left[j].x + eyes_left[j].width / 2;
+			eyeLeftY[j] = faces[i].y + eyes_left[j].y + eyes_left[j].height / 2;
+			eyeLeftRadius[j] = (eyes_left[j].width + eyes_left[j].height)*0.25;
+
+			Point eye_center_left(eyeLeftX[j], eyeLeftY[j]);
+			int radius = cvRound(eyeLeftRadius[j]);
+			//circle(frame, eye_center_left, radius, Scalar(0, 255, 0), 4, 8, 0);
+
+
+		}
+
+		//red for right
+		eyes_cascade_right.detectMultiScale(faceROI, eyes_right, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		for (size_t j = 0; j < eyes_right.size(); j++)
+		{
+			eyeRightX[j] = faces[i].x + eyes_right[j].x + eyes_right[j].width / 2;
+			eyeRightY[j] = faces[i].y + eyes_right[j].y + eyes_right[j].height / 2;
+			eyeRightRadius[j] = (eyes_right[j].width + eyes_right[j].height)*0.25;
+
+			Point eye_center_right(eyeRightX[j], eyeRightY[j]);
+			int radius = cvRound(eyeRightRadius[j]);
+			//circle(frame, eye_center_right, radius, Scalar(0, 0, 255), 4, 8, 0);
+
+
+		}
+
+		//turquose for mouth
+		smile_cascade.detectMultiScale(faceROI, smile, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		for (size_t j = 0; j < smile.size(); j++)
+		{
+			mouthX[j] = faces[i].x + smile[j].x + smile[j].width / 2;
+			mouthY[j] = faces[i].y + smile[j].y + smile[j].height / 2;
+			mouthRadius[j] = (smile[j].width + smile[j].height)*0.25;
+
+			Point mouth_center(mouthX[j], mouthY[j]);
+			int radius = cvRound(mouthRadius[j]);
+			//circle(frame, mouth_center, radius, Scalar(255, 255,0 ), 4, 8, 0);
+			int p = j;
+
+		}
+		int eyesX[80];
+		int eyesY[80];
+		int eyesRadius[80];
+		int l = 0;
+		for (size_t h = 0; h < faces.size(); h++) {
+			int correct = 0;
+			for (size_t i = 0; i < eyes_normal.size(); i++) {
+				for (size_t j = 0; j < eyes_left.size(); j++) {
+					for (size_t k = 0; k < eyes_right.size(); k++) {
+						if ((abs(eyeRightX[k] - eyeLeftX[j]) < eyeRightRadius[k] / 2) && (abs(eyeLeftY[j] - eyeRightY[k]) < eyeRightRadius[k] / 2)) {
+							if ((abs(eyeLeftX[j] - eyeNormalX[i]) < eyeLeftRadius[j] / 2) && (abs(eyeNormalY[i] - eyeLeftY[j]) < eyeLeftRadius[j] / 2)) {
+								if ((abs(eyeNormalX[i] - eyeRightX[k]) < eyeNormalRadius[i] / 2) && (abs(eyeRightY[k] - eyeNormalY[i]) < eyeNormalRadius[i] / 2)) {
+
+									correct++;
+									eyesX[l] = (eyeLeftX[j] + eyeRightX[k] + eyeNormalX[i]) / 3;
+									eyesY[l] = ((eyeLeftY[j] + eyeRightY[k] + eyeNormalY[i]) / 3) + (faces[h].y)*0.05;
+									eyesRadius[l] = (eyeLeftRadius[j] + eyeRightRadius[k] + eyeNormalRadius[i]) / 3;
+									averageHeight[l] = (eyes_normal[i].height + eyes_left[j].height + eyes_right[k].height) / 3;
+									averageWidth[l] = (eyes_normal[i].width + eyes_left[j].width + eyes_right[k].width) / 3;
+									//cout << (faces[h].y) << endl;
+									if ((abs(centerFace.x - eyesX[l]) < faces[o].width*0.5) && (abs(centerFace.y - eyesY[l]) < faces[o].width*0.5)) {
+										ellipse(frame, centerFace, Size(faces[o].width*0.5, faces[o].height*0.5), 0, 0, 360, Scalar(255, 0, 255), 4, 8, 0);
+										l++;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		int n;
+		if ((eyesX[0] > 0) && (eyesX[1] > 0) && (eyesY[0] > 0) && (eyesY[1] > 0)) {
+			Point eyes1(eyesX[0], eyesY[0]);
+			Point eyes2(eyesX[1], eyesY[1]);
+			//line(frame, eyes1, eyes2, Scalar(255, 255, 0), 5, 8, 0);
+			//cout << eyes1 << ", " << eyes2 << endl;
+			if (eyesX[0] > eyesX[1]) {
+				n = 0;
+			}
+			else {
+				n = 1;
+			}
+			//Mat eyeROI1 = faceROI(eyes[p]);
+			Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
+
+			Rect cropped((eyesX[n] - averageWidth[o] / 2), (eyesY[n] - averageHeight[o] / 2), averageWidth[o], averageHeight[o]);
+			Mat frameCropped = frame(cropped);
+
+
+
+			cvtColor(frameCropped, HSVImage, CV_BGR2HSV);
+			//cvtColor(frameCropped, frameCropped, CV_BGR2Lab);
+			cvtColor(frameCropped, greyImage, CV_RGB2GRAY);
+			inRange(HSVImage, Scalar(HL, SL, VL), Scalar(HH, SH, VH), eyeWhites);
+			cvtColor(frameCropped, out, CV_BGR2GRAY);
+
+			//Canny(out, cannyOut, 10, 75, 3);
+
+
+
+			//Mat eyeROI2 = faceROI(eyes[1]);
+
+
+			//Mat canny_output;
+			vector<vector<Point> > contours;
+			vector<Vec4i> hierarchy;
+
+			/// Detect edges using canny
+			equalizeHist(out, out1);
+			Canny(out1, canny_output, 20, 80, 3);
+			/// Find contours
+			findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+			/// Draw contours
+			Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
+			for (int i = 0; i < contours.size(); i++)
+			{
+				Scalar color = Scalar(rng.uniform(255, 255), rng.uniform(255, 255), rng.uniform(255, 255));
+				drawContours(drawing, contours, i, color, 1, 8, hierarchy, 0, Point());
+			}
+			//Canny(eyeROI1, cannyOut, 90, 180);
+			resize(drawing, drawing, Size(300, 200), 2, 2);
+			//imshow(window_name2, eyeROI2);
+			imshow("Origin", drawing);
+			resize(eyeWhites, eyeWhites, Size(300, 200), 2, 2);
+			resize(frameCropped, frameCropped, Size(300, 200), 2, 2);
+			resize(out, out, Size(300, 200), 2, 2);
+			//resize(cannyOut, cannyOut, Size(300, 200), 2, 2);
+			addWeighted(out, 1, eyeWhites, .5, 0, test);
+			imshow(window_name1, test);
+			imshow(window_name2, frameCropped);
+			
+		}
+		
+	}
 }

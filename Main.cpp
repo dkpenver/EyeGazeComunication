@@ -19,21 +19,29 @@ Mat src; Mat src_gray;
 int thresh = 25;
 int max_thresh = 255;
 RNG rng(12345);
-Mat frame;
+Mat frame,image;
 
 /** Function Headers */
 Mat detectFace(Mat& frame);
 Mat eyeLocation(Mat& frame, Mat& frame_grey, std::vector<Rect> faces, size_t location);
 string get_time(void);
-void training_image_left(Mat eye);
-void training_image_right(Mat eye); 
-void training_image_up(Mat eye);
-void training_image_down(Mat eye);
-void direction(Mat& frameCropped);
+Mat eyeDirection(Mat eye);
 Mat capture_image();
-void comparison();
+void comparison(Mat image);
+
 
 /** Global variables */
+int threshold_value = 20;
+int threshold_type = 1;;
+int const max_value = 255;
+int const max_type = 4;
+int const max_BINARY_value = 255;
+Mat	 dst;
+char* window_name = "Threshold Demo";
+
+char* trackbar_type = "Type: \n 0: Binary \n 1: Binary Inverted \n 2: Truncate \n 3: To Zero \n 4: To Zero Inverted";
+char* trackbar_value = "Value";
+
 String face_cascade_name = "haarcascade_frontalface_alt.xml";
 String eyes_cascade_normal_name = "haarcascade_eye.xml";
 String eyes_cascade_right_name = "haarcascade_righteye_2splits.xml";
@@ -48,8 +56,7 @@ std::string window_name1 = "Capture1 - Face detection";
 std::string window_name2 = "Capture2 - Face detection";
 std::string window_name3 = "Capture3 - Face detection";
 
-int HH = 179, HL = 146, VL = 15, VH = 113, SL = 3, SH = 57;
-/** @function main */
+
 int main()
 {
 
@@ -67,29 +74,35 @@ int main()
 	if (!eyes_cascade_normal.load(eyes_cascade_normal_name)) { printf("--(!)Error loading\n"); return -1; };
 
 	Mat left, right, up, down, loop;
-	waitKey(0);
-	left = capture_image();
-	training_image_left(left);
+
+	/*left = capture_image();
+	image = eyeDirection(left);
+	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", image);
 	imshow("Origin", left);
 	waitKey(0);
 	right = capture_image();
-	training_image_left(right);
+	image= eyeDirection(right);
+	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", image);
 	imshow("Origin", right);
 	waitKey(0);
 	up = capture_image();
-	training_image_left(up);
+	image = eyeDirection(up);
+	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", image);
 	imshow("Origin", up);
 	waitKey(0);
 	down = capture_image();
-	training_image_left(down);
+	image = eyeDirection(down);
+	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", image);
 	imshow("Origin", down);
-	waitKey(0);
+	waitKey(0);*/
 	cout << "loop begins" << endl << endl;
-	/*while (true){
+	while (true){
 		loop=capture_image(); 
+		image = eyeDirection(loop);
+		comparison(image);
 		imshow("Origin", loop);
-		waitKey(1);
-	}*/
+		waitKey(0);
+	}
 }
 
 Mat capture_image() {
@@ -149,101 +162,6 @@ Mat detectFace(Mat& frame)
 		cout << "No eyes" << endl;
 		return capture_image();
 	}
-	/*else {
-	Mat rotated,rotatedFrame;
-	Point2f centre;
-	centre.x = frame.rows / 2;
-	centre.y = frame.cols / 2;
-	namedWindow("Control", WINDOW_NORMAL);
-	for (int angle = 0; angle < 360; angle++) {
-	warpAffine(frame,rotated,getRotationMatrix2D(centre, angle, 1),Size(frame.cols,frame.rows));
-	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 1, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-	cout << angle << endl;
-	angle = angle + 19;
-	if (faces.empty() == false) {
-	warpAffine(frame, rotatedFrame, getRotationMatrix2D(centre, angle, 1), Size(frame.cols, frame.rows));
-	eyeLocation(rotatedFrame, rotated, faces);
-	break;
-	}
-	imshow("Control", rotated);
-	}
-	}*/
-	/*
-	namedWindow("control", WINDOW_AUTOSIZE);
-	namedWindow("Origin", WINDOW_AUTOSIZE);
-	createTrackbar("H Low", "control", &HL, 179);
-	createTrackbar("H High", "control", &HH, 179);
-	createTrackbar("S Low", "control", &SL, 255);
-	createTrackbar("S High", "control", &SH, 255);
-	createTrackbar("V Low", "control", &VL, 255);
-	createTrackbar("VHigh", "control", &VH, 255);
-	std::vector<Rect> faces;
-	Mat frame_gray, cannyOut;
-	cvtColor(frame, frame_gray, CV_BGR2GRAY);
-	//equalizeHist(frame_gray, frame_gray);
-	//-- Detect faces
-	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 1, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-	if (faces.empty() == false) {
-	for (size_t i = 0; i < faces.size(); i++)
-	{
-	Point centerFace(faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5);
-	ellipse(frame, centerFace, Size(faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar(255, 0, 255), 4, 8, 0);
-	Mat faceROI = frame_gray(faces[i]);
-	std::vector<Rect> eyes;
-	//-- In each face, detect eyes
-	eyes_cascade.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-	if (eyes.empty() == false) {
-	if (eyes.size() >= 2) {
-	int p = 0;
-	for (int j = 1; j < eyes.size(); j++) {
-	if ((faces[i].y + eyes[j].y) < (faces[i].y + eyes[j - 1].y)) {
-	p = j;
-	}
-	}
-	Point centerEye(faces[i].x + eyes[p].x + eyes[p].width*0.5, faces[i].y + eyes[p].y + eyes[p].height*0.5);
-	int radius = cvRound((eyes[p].width + eyes[p].height)*0.25);
-	//circle(frame, centerEye,radius, Scalar(255, 0, 0), 4, 8, 0);
-	Mat eyeROI1 = faceROI(eyes[p]);
-	Rect cropped((faces[i].x + eyes[p].x), (faces[i].y + eyes[p].y + eyes[p].height / 4), eyes[p].width, eyes[p].height*0.5);
-	Mat frameCropped = frame(cropped);
-	Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1;
-	cvtColor(frameCropped, HSVImage, CV_BGR2HSV);
-	//cvtColor(frameCropped, frameCropped, CV_BGR2Lab);
-	cvtColor(frameCropped, greyImage, CV_RGB2GRAY);
-	inRange(HSVImage, Scalar(HL, SL, VL), Scalar(HH, SH, VH), eyeWhites);
-	cvtColor(frameCropped, out, CV_BGR2GRAY);
-	//Canny(out, cannyOut, 10, 75, 3);
-	//Mat eyeROI2 = faceROI(eyes[1]);
-	//Mat canny_output;
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	/// Detect edges using canny
-	equalizeHist(out, out1);
-	Canny(out1, canny_output, 20, 80, 3);
-	/// Find contours
-	findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-	/// Draw contours
-	Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
-	for (int i = 0; i< contours.size(); i++)
-	{
-	Scalar color = Scalar(rng.uniform(255, 255), rng.uniform(255, 255), rng.uniform(255, 255));
-	drawContours(drawing, contours, i, color, 1, 8, hierarchy, 0, Point());
-	}
-	//Canny(eyeROI1, cannyOut, 90, 180);
-	resize(drawing, drawing, Size(300, 200), 2, 2);
-	//imshow(window_name2, eyeROI2);
-	imshow("Origin", drawing);
-	resize(eyeWhites, eyeWhites, Size(300, 200), 2, 2);
-	resize(out, out, Size(300, 200), 2, 2);
-	//resize(cannyOut, cannyOut, Size(300, 200), 2, 2);
-	addWeighted(out, 1, eyeWhites, .5, 0, test);
-	imshow(window_name1, test);
-	//cout << eyes[j] << endl;
-	}
-	}
-	}
-	}*/
 }
 Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t location) {
 	cout << "eye location" << endl;
@@ -321,7 +239,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 	}
 
 	//turquose for mouth
-	smile_cascade.detectMultiScale(faceROI, smile, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+	/*smile_cascade.detectMultiScale(faceROI, smile, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
 	for (size_t j = 0; j < smile.size(); j++)
 	{
 		mouthX[j] = faces[i].x + smile[j].x + smile[j].width / 2;
@@ -333,7 +251,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 		//circle(frame, mouth_center, radius, Scalar(255, 255,0 ), 4, 8, 0);
 		int p = j;
 
-	}
+	}*/
 	cout << "parts found" << endl;
 	int eyesX[80];
 	int eyesY[80];
@@ -388,90 +306,16 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 		return frameCropped;
 	}
 	else {
+		if ((eyesX[0]> 0) && (eyesY > 0)){
+			Point eyes1(eyesX[0], eyesY[0]);
+			Rect cropped((eyesX[0] - (averageWidth[o] / 2)), (eyesY[0] - (averageHeight[o] / 2)), averageWidth[o], averageHeight[o]);
+			frameCropped = frame(cropped);
+			return frameCropped;
+		}
 		cout << "2 eyes not in range" << endl;
 		return frameCropped = capture_image();
 	}
 }
-
-void direction(Mat& frameCropped){
-	Mat HSVImage, eyeWhites, greyImage, test, out, canny_output, out1, lab;
-		cvtColor(frameCropped, greyImage, CV_RGB2GRAY);
-		//GaussianBlur(greyImage, greyImage, Size(3,3), 2, 2);
-		//inRange(HSVImage, Scalar(HL, SL, VL), Scalar(HH, SH, VH), eyeWhites);
-		equalizeHist(greyImage, greyImage);
-		equalizeHist(greyImage, greyImage);
-		//equalizeHist(frameCropped, frameCropped);
-		//Canny(out, cannyOut, 10, 75, 3);
-		int erosion_size = 1;
-		Mat element = getStructuringElement(2,
-			Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-			Point(erosion_size, erosion_size));
-		dilate(greyImage, greyImage, element);
-		erode(greyImage, greyImage, element);
-		dilate(greyImage, greyImage, element);
-		erode(greyImage, greyImage, element);
-		//erode(greyImage, greyImage, element);
-		//Mat eyeROI2 = faceROI(eyes[1]);
-
-
-
-		//Mat canny_output;
-		vector<vector<Point> > contours;
-		vector<Vec4i> hierarchy;
-
-		/// Detect edges using canny
-
-		Canny(greyImage, canny_output, 200, 300, 3);
-		/// Find contours
-		//findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-
-		/// Draw contours
-		/*Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
-		for (int i = 0; i < contours.size(); i++)
-		{
-		Scalar color = Scalar(rng.uniform(255, 255), rng.uniform(255, 255), rng.uniform(255, 255));
-		drawContours(drawing, contours, i, color, 1, 8, hierarchy, 0, Point());
-		}
-		//Canny(eyeROI1, cannyOut, 90, 180);
-		*/
-		//imshow(window_name2, eyeROI2);
-		Mat framedOutput = frameCropped;
-		vector<Vec3f> circles;
-		//cout << "p" << endl;
-		HoughCircles(canny_output, circles, CV_HOUGH_GRADIENT, 1, frameCropped.cols / 4, 250, 10, frameCropped.rows / 8, frameCropped.rows / 3);
-		//resize(drawing, drawing, Size(300, 300), 2, 2);
-		/// Draw the circles detected
-		if (circles.size() == 0) { cout << "No circles found" << endl; }
-		else {
-			cout << circles.size() << endl;
-			for (size_t i = 0; i < circles.size(); i++)
-			{
-				Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-				int radius = cvRound(circles[i][2]);
-				// circle center
-				//circle(framedOutput, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-				// circle outline
-				//circle(framedOutput, center, radius, Scalar(0, 0, 255), 1, 8, 0);
-			}
-			cout << "Circles drawn" << endl;
-		}
-
-		//imshow("Origin", drawing);
-		//resize(eyeWhites, eyeWhites, Size(300, 200), 2, 2);
-		resize(frameCropped, frameCropped, Size(300, 300), 2, 2);
-		resize(canny_output, canny_output, Size(300, 300), 2, 2);
-		
-		//resize(cannyOut, cannyOut, Size(300, 200), 2, 2);
-		//addWeighted(out, 1, eyeWhites, .5, 0, test);
-		imshow(window_name1, canny_output);
-
-		
-		imshow(window_name2, framedOutput);
-		
-	}
-
-
-
 
 string get_time(void) {
 
@@ -491,30 +335,58 @@ string get_time(void) {
 	
 }
 
-void training_image_left(Mat eye) {
+Mat eyeDirection(Mat eye) {
 	cout << "training looking left" << endl;
-	resize(eye, eye, Size(300, 300), 2, 2);
-	Mat greyImage,canny_output,HSV,eyeWhites,test;
+	
+	Mat greyImage,canny_output,HSV,eyeWhites,test,output;
 	cvtColor(eye, greyImage, CV_RGB2GRAY);
 	equalizeHist(greyImage, greyImage);
 	equalizeHist(greyImage, greyImage);
 	int erosion_size = 1;
 	Mat element = getStructuringElement(2,Size(2 * erosion_size + 1, 2 * erosion_size + 1),Point(erosion_size, erosion_size));
+	/*dilate(greyImage, greyImage, element);
+	erode(greyImage, greyImage, element);
+	dilate(greyImage, greyImage, element);
+	erode(greyImage, greyImage, element);
 	dilate(greyImage, greyImage, element);
 	erode(greyImage, greyImage, element);
 	dilate(greyImage, greyImage, element);
 	erode(greyImage, greyImage, element);
-	
+	*/
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 	cvtColor(greyImage, greyImage, CV_GRAY2RGB);
 	cvtColor(greyImage, HSV, CV_RGB2HSV);
-	inRange(eye, Scalar(0,0,0,0), Scalar(180, 255, 30,0), eyeWhites);	
-	Canny(greyImage, canny_output, 10, 80, 3);
+	inRange(eye, Scalar(0,0,0,0), Scalar(180, 255, 50,0), eyeWhites);
+	Canny(greyImage, canny_output, 10, 600, 3);
 	Mat framedOutput = eye;
 	vector<Vec3f> circles;
 	cout << "houghs circle" << endl;
-	HoughCircles(canny_output, circles, CV_HOUGH_GRADIENT, 1, eye.cols / 4, 250, 30, eye.rows / 8, eye.rows / 3);
+	
+	src_gray = greyImage;
+
+	namedWindow(window_name, CV_WINDOW_AUTOSIZE);
+
+	/// Create Trackbar to choose type of Threshold
+
+	/// Call the function to initialize
+
+
+	threshold(src_gray, dst, threshold_value, max_BINARY_value, threshold_type);
+	cvtColor(dst, dst, CV_RGB2BGR);
+	cvtColor(eyeWhites, canny_output, CV_GRAY2RGB);
+	resize(dst, dst, Size(600, 600), 2, 2);
+	resize(canny_output, canny_output, Size(600, 600), 2, 2);
+	cout << "resized" << endl; 
+	addWeighted(dst, 0.25, canny_output, .25, 0, test);
+	
+	cout << "weighted" << endl;
+	cvtColor(test,test, CV_RGB2GRAY);
+	
+	
+	
+
+	/*HoughCircles(test, circles, CV_HOUGH_GRADIENT, 1, eye.cols / 4, 250, 30, eye.rows / 8, eye.rows / 2);
 	//resize(drawing, drawing, Size(300, 300), 2, 2);
 	/// Draw the circles detected
 	if (circles.size() == 0) { cout << "No circles found" << endl; }
@@ -529,22 +401,33 @@ void training_image_left(Mat eye) {
 			// circle outline
 			circle(framedOutput, center, radius, Scalar(0, 0, 255), 1, 8, 0);
 		}
-		cout << "Circles drawn" << endl<<endl;
-	}
-//	addWeighted(greyImage, 1, eyeWhites, .5, 0, test);
-	//resize(cannyOut, cannyOut, Size(300, 200), 2, 2);
-	imshow(window_name1, greyImage);
+		cout << "Circles drawn" << endl << endl;
+	}*/
+	//resize(cannyOut, cannyOut, Size(300, 200), 2,2);
+	//resize(canny_output, output, Size(300, 300), 2, 2);
+	//imshow(window_name1, output);
+	//resize(dst, dst, Size(600, 600), 2, 2);
+	imshow(window_name, test);
+	return test;
+}
 
-}
-void training_image_right(Mat eye) {
-	resize(eye, eye, Size(300, 200), 2, 2);
-}
-void training_image_up(Mat eye) {
-	resize(eye, eye, Size(300, 200), 2, 2);
-}
-void training_image_down(Mat eye) {
-	resize(eye, eye, Size(300, 200), 2, 2);
-}
-void comparison() {
-
+void comparison(Mat image) {
+	Mat up, down, left, right, merged;
+	left = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", 1);
+	right = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", 1);
+	up = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", 1);
+	down = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", 1);
+	resize(left, left, Size(600, 600), 2, 2);
+	cvtColor(left,left , CV_RGB2GRAY);
+	resize(right, right, Size(600, 600), 2, 2);
+	cvtColor(right,right , CV_RGB2GRAY);
+	resize(up, up, Size(600, 600), 2, 2);
+	cvtColor(up,up , CV_RGB2GRAY);
+	resize(down,down, Size(600, 600), 2, 2);
+	cvtColor(down,down , CV_RGB2GRAY);
+	resize(image, image, Size(600, 600), 2, 2);
+	//cvtColor(image, image, CV_RGB2GRAY);
+	addWeighted(image, 1, up, 1, 0, merged);
+	imshow(window_name,merged);
+	waitKey(0);
 }

@@ -8,14 +8,18 @@
 #include <array>
 #include <ctime>
 #include <string>
+#include <fstream>
+
 
 #define MAX_DATE 12
 
 using namespace std;
 using namespace cv;
+//using namespace dlib;
 
 Mat cameraFeed;
-Mat src; Mat src_gray;
+Mat src; 
+Mat src_gray;
 int thresh = 25;
 int max_thresh = 255;
 RNG rng(12345);
@@ -25,13 +29,20 @@ Mat frame,image;
 Mat detectFace(Mat& frame);
 Mat eyeLocation(Mat& frame, Mat& frame_grey, std::vector<Rect> faces, size_t location);
 string get_time(void);
-Mat eyeDirection(Mat eye);
+Mat eyeFiltering(Mat eye);
 Mat capture_image();
 void comparison(Mat image);
+Mat averageingImages(Mat image1,Mat image2,float count);
+int counter(void);
+float reset(float count);
+Mat filter(Mat image,float count);
+float accuracy(Mat trained, Mat check);
+
 
 
 /** Global variables */
-int threshold_value = 20;
+int HSVValue = 0;
+int threshold_value = 0;
 int threshold_type = 1;;
 int const max_value = 255;
 int const max_type = 4;
@@ -52,9 +63,12 @@ CascadeClassifier eyes_cascade_normal;
 CascadeClassifier eyes_cascade_right;
 CascadeClassifier eyes_cascade_left;
 CascadeClassifier smile_cascade;
-std::string window_name1 = "Capture1 - Face detection";
-std::string window_name2 = "Capture2 - Face detection";
-std::string window_name3 = "Capture3 - Face detection";
+std::string upMerged= "Up";
+std::string downMerged ="Down";
+std::string leftMerged = "Left";
+std::string rightMerged = "Right";
+std::string window_name5 = "Capture5 - Face detection";
+
 
 
 int main()
@@ -67,41 +81,116 @@ int main()
 	smile_cascade.load(smile_cascade_name);
 	//VideoCapture::VideoCapture(1);
 
-	namedWindow("Origin", WINDOW_AUTOSIZE);
-	namedWindow("window_name1", WINDOW_AUTOSIZE);
+	//namedWindow("Origin", WINDOW_AUTOSIZE);
+
 	//-- 1. Load the cascades
 	if (!face_cascade.load(face_cascade_name)) { printf("--(!)Error loading\n"); return -1; };
 	if (!eyes_cascade_normal.load(eyes_cascade_normal_name)) { printf("--(!)Error loading\n"); return -1; };
 
-	Mat left, right, up, down, loop;
+	Mat left, right, up, down, loop,average,filtered;
+	char input;
 
-	/*left = capture_image();
-	image = eyeDirection(left);
-	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", image);
-	imshow("Origin", left);
-	waitKey(0);
-	right = capture_image();
-	image= eyeDirection(right);
-	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", image);
-	imshow("Origin", right);
-	waitKey(0);
-	up = capture_image();
-	image = eyeDirection(up);
-	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", image);
-	imshow("Origin", up);
-	waitKey(0);
-	down = capture_image();
-	image = eyeDirection(down);
-	imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", image);
-	imshow("Origin", down);
-	waitKey(0);*/
-	cout << "loop begins" << endl << endl;
-	while (true){
-		loop=capture_image(); 
-		image = eyeDirection(loop);
-		comparison(image);
-		imshow("Origin", loop);
-		waitKey(0);
+	cout << "Do you want to train (Input 't') or do you want to detect(Input 'l') " << endl;
+	cin >> input;
+
+	if (input == 't') {
+		float count = counter();
+		count = reset(count);
+		while (1) {
+			float count = counter();
+			cout << "look left" << endl;
+			waitKey(0);
+			left = capture_image();
+			image = eyeFiltering(left);
+			if (count == 0) {
+				average = image;
+				//cout << "count = 0" << endl;
+			}
+			else {
+				left = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", 0);
+				average = averageingImages(image, left, count);
+				//cout << "count != 0" << endl;
+			}
+			filtered = filter(average, count);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/leftFilter.jpg", filtered);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", average);
+			imshow("Origin", filtered);
+			cout << endl;
+
+
+			cout << "Look right" << endl;
+			waitKey(0);
+			right = capture_image();
+			image = eyeFiltering(right);
+			if (count == 0) {
+				average = image;
+			}
+			else {
+				right = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", 0);
+				average = averageingImages(image, right, count);
+			}
+			filtered = filter(average, count);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/rightFilter.jpg", filtered);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", average);
+			imshow("Origin", filtered);
+			cout << endl;
+
+
+			cout << "Look up" << endl;
+			waitKey(0);
+			up = capture_image();
+			image = eyeFiltering(up);
+			if (count == 0) {
+				average = image;
+			}
+			else {
+				up = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", 0);
+				average = averageingImages(image, up, count);
+			}
+			filtered = filter(average, count);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/upFilter.jpg", filtered);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", average);
+			imshow("Origin", filtered);
+			cout << endl;
+
+
+			cout << "Look down" << endl;
+			waitKey(0);
+			down = capture_image();
+			image = eyeFiltering(down);
+			if (count == 0) {
+				average = image;
+			}
+			else {
+				down = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", 0);
+				average = averageingImages(image, down, count);
+			}
+			filtered = filter(average, count);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/downFilter.jpg", filtered);
+			imwrite("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", average);
+			imshow("Origin", filtered);
+			waitKey(1);
+			if (count == 0) { counter(); }
+			cout << endl;
+			cout << "Continue" << endl;
+			cin >> input;
+			if (input == 'n') {
+				break;
+			}
+		}
+	
+	}
+
+	if (input == 'l') {
+		cout << "loop begins" << endl << endl;
+		while (true) {
+			loop = capture_image();
+			image = eyeFiltering(loop);
+			comparison(image);
+			imshow("Origin", loop);
+			waitKey(0);
+			cout << endl;
+		}
 	}
 }
 
@@ -113,8 +202,8 @@ Mat capture_image() {
 	Mat frame,result, input;
 	cap.read(frame);
 	resize(frame, input, Size(300, 200), 2, 2);
-	imshow("window_name1", input);
-	waitKey(1);
+	//imshow("window_name1", input);
+	//waitKey(1);
 	cout << "image taken" << endl;
 	//-- 3. Apply the classifier to the frame
 	if (!frame.empty())
@@ -149,7 +238,7 @@ Mat detectFace(Mat& frame)
 				size = faces[l].width;
 			}
 		}
-		cout << "goto eyelocation" << endl;
+		//cout << "goto eyelocation" << endl;
 		Mat eyes = eyeLocation(frame, frame_gray, faces, location);
 		if (eyes.empty()) {
 			return eyes = capture_image();
@@ -159,12 +248,12 @@ Mat detectFace(Mat& frame)
 		}
 	}
 	else {
-		cout << "No eyes" << endl;
+		//cout << "No eyes" << endl;
 		return capture_image();
 	}
 }
 Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t location) {
-	cout << "eye location" << endl;
+	//cout << "eye location" << endl;
 	int eyeNormalX[80];
 	int eyeNormalY[80];
 	int eyeNormalRadius[80];
@@ -174,9 +263,9 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 	int eyeLeftX[80];
 	int eyeLeftY[80];
 	int eyeLeftRadius[80];
-	int mouthX[80];
-	int mouthY[80];
-	int mouthRadius[80];
+	//int mouthX[80];
+	//int mouthY[80];
+	//int mouthRadius[80];
 	int averageHeight[80];
 	int averageWidth[80];
 	Mat frameCropped;
@@ -252,7 +341,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 		int p = j;
 
 	}*/
-	cout << "parts found" << endl;
+	//cout << "parts found" << endl;
 	int eyesX[80];
 	int eyesY[80];
 	int eyesRadius[80];
@@ -284,20 +373,20 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 			}
 		}
 	}
-	cout << "eye location found" << endl;
+	//cout << "eye location found" << endl;
 	int n;
 	if ((eyesX[0] > 0) && (eyesX[1] > 0) && (eyesY[0] > 0) && (eyesY[1] > 0)) {
 		Point eyes1(eyesX[0], eyesY[0]);
 		Point eyes2(eyesX[1], eyesY[1]);
 		//line(frame, eyes1, eyes2, Scalar(255, 255, 255), 5, 8, 0);
 		cout << eyes1 << ", " << eyes2 << endl;
-		if (eyesX[0] < eyesX[1]) {
+		if ((eyesX[0] < eyesX[1])|| (eyesY[0] < eyesY[1])) {
 			n = 0;
 		}
 		else {
 			n = 1;
 		}
-		cout << "BOth eyes line drawn togeather" << endl;
+		//cout << "BOth eyes line drawn togeather" << endl;
 		//Mat eyeROI1 = faceROI(eyes[p]);
 		
 
@@ -312,7 +401,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 			frameCropped = frame(cropped);
 			return frameCropped;
 		}
-		cout << "2 eyes not in range" << endl;
+		//cout << "2 eyes not in range" << endl;
 		return frameCropped = capture_image();
 	}
 }
@@ -335,8 +424,8 @@ string get_time(void) {
 	
 }
 
-Mat eyeDirection(Mat eye) {
-	cout << "training looking left" << endl;
+Mat eyeFiltering(Mat eye) {
+	//cout << "training looking left" << endl;
 	
 	Mat greyImage,canny_output,HSV,eyeWhites,test,output;
 	cvtColor(eye, greyImage, CV_RGB2GRAY);
@@ -357,11 +446,22 @@ Mat eyeDirection(Mat eye) {
 	vector<Vec4i> hierarchy;
 	cvtColor(greyImage, greyImage, CV_GRAY2RGB);
 	cvtColor(greyImage, HSV, CV_RGB2HSV);
-	inRange(eye, Scalar(0,0,0,0), Scalar(180, 255, 50,0), eyeWhites);
+	for (int num = 0; num < 5000; HSVValue++) {
+		inRange(eye, Scalar(0, 0, 0, 0), Scalar(180, 255, HSVValue, 0), eyeWhites);
+		for (int y = 0; y < greyImage.rows; y++) {
+			for (int x = 0; x < greyImage.cols; x++) {
+				if ((eyeWhites.at<uchar>(y, x) > 100)) {
+					num++;
+				}
+			}
+		}
+		//cout <<HSVValue<< "HSV "<<num << endl;
+	}
+	HSVValue = 0;
 	Canny(greyImage, canny_output, 10, 600, 3);
 	Mat framedOutput = eye;
 	vector<Vec3f> circles;
-	cout << "houghs circle" << endl;
+	//cout << "houghs circle" << endl;
 	
 	src_gray = greyImage;
 
@@ -371,16 +471,28 @@ Mat eyeDirection(Mat eye) {
 
 	/// Call the function to initialize
 
+	for (int num = 0; num < 8000;threshold_value++) {
+		threshold(src_gray, dst, threshold_value, max_BINARY_value, threshold_type);
+		for (int y = 0; y < src_gray.rows; y++) {
+			for (int x = 0; x < src_gray.cols; x++) {
+				if ((dst.at<uchar>(y, x) >100)) {
+					num++;
+				}
+			}
+		}
+		//cout <<threshold_value<<"binary "<< num << endl;
+	}
+	threshold_value = 0;
+	//cout << threshold_value << endl;
 
-	threshold(src_gray, dst, threshold_value, max_BINARY_value, threshold_type);
 	cvtColor(dst, dst, CV_RGB2BGR);
 	cvtColor(eyeWhites, canny_output, CV_GRAY2RGB);
 	resize(dst, dst, Size(600, 600), 2, 2);
 	resize(canny_output, canny_output, Size(600, 600), 2, 2);
-	cout << "resized" << endl; 
-	addWeighted(dst, 0.25, canny_output, .25, 0, test);
+	//cout << "resized" << endl; 
+	addWeighted(dst, 1, canny_output, 1, 0, test);
 	
-	cout << "weighted" << endl;
+	//cout << "weighted" << endl;
 	cvtColor(test,test, CV_RGB2GRAY);
 	
 	
@@ -412,22 +524,189 @@ Mat eyeDirection(Mat eye) {
 }
 
 void comparison(Mat image) {
-	Mat up, down, left, right, merged;
-	left = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/left.jpg", 1);
-	right = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/right.jpg", 1);
-	up = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/up.jpg", 1);
-	down = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/down.jpg", 1);
-	resize(left, left, Size(600, 600), 2, 2);
-	cvtColor(left,left , CV_RGB2GRAY);
-	resize(right, right, Size(600, 600), 2, 2);
-	cvtColor(right,right , CV_RGB2GRAY);
-	resize(up, up, Size(600, 600), 2, 2);
-	cvtColor(up,up , CV_RGB2GRAY);
-	resize(down,down, Size(600, 600), 2, 2);
-	cvtColor(down,down , CV_RGB2GRAY);
-	resize(image, image, Size(600, 600), 2, 2);
-	//cvtColor(image, image, CV_RGB2GRAY);
-	addWeighted(image, 1, up, 1, 0, merged);
-	imshow(window_name,merged);
-	waitKey(0);
+	Mat up, down, left, right, mergedLeft,mergedRight,mergedUp,mergedDown;
+	left = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/leftFilter.jpg", 1);
+	right = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/rightFilter.jpg", 1);
+	up = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/upFilter.jpg", 1);
+	down = imread("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/downFilter.jpg", 1);
+	
+	resize(left, left, Size(300, 300), 2, 2);
+	
+	cvtColor(left,left , CV_BGR2GRAY);
+
+	resize(right, right, Size(300, 300), 2, 2);
+	cvtColor(right,right , CV_BGR2GRAY);
+	resize(up, up, Size(300, 300), 2, 2);
+	cvtColor(up,up , CV_BGR2GRAY);
+	resize(down,down, Size(300, 300), 2, 2);
+	cvtColor(down,down , CV_BGR2GRAY);
+	resize(image, image, Size(300, 300), 2, 2);
+	//cout << "i" << endl;
+
+	float leftAccuracy, rightAccuracy, upAccuracy, downAccuracy;
+	leftAccuracy= accuracy(left,image);
+	rightAccuracy = accuracy(right, image);
+	upAccuracy = accuracy(up, image);
+	downAccuracy = accuracy(down, image);
+	cout << leftAccuracy << "% Left" <<endl<< rightAccuracy << "% Right" <<endl<< upAccuracy << "% Up" <<endl<< downAccuracy << "% Down" << endl;
+	if ((upAccuracy > (2 * leftAccuracy)) && (upAccuracy > (2 * rightAccuracy))) {
+		cout << "Looking  up" << endl;
+	}
+	else if ((downAccuracy/upAccuracy)> 2) {
+		cout << "Looking  Down" << endl;
+	}
+	else if (((leftAccuracy / upAccuracy) > 0.5)&&((rightAccuracy/upAccuracy)>0.5)) {
+		if (leftAccuracy > rightAccuracy) {
+			cout << "Looking  left" << endl;
+		}
+		else {
+			cout << "Looking Right" << endl;
+
+		}
+
+	}
+	else {
+		cout << "Error" << endl;
+	}
+	
+	
+	
+	//imshow(rightMerged, image);
+}
+Mat averageingImages(Mat image2,Mat image1,float count) {
+	Mat averaged= Mat(image1.rows, image1.cols, CV_32F);
+	cout << 1 - (1 / count) <<","<< 1/count<<","<<count<< endl;
+	addWeighted(image1, (1-(1/count)), image2, (1/count), 0, averaged);
+	
+return averaged;
+}
+Mat filter(Mat averaged, float count) {
+	int count_black = 0;
+	int count_white = 0;
+	cout << "filter" << endl;
+	Mat filtered = Mat(averaged.rows, averaged.cols, CV_32F);
+	for (int y = 0; y < image.rows; y++) {
+		for (int x = 0; x < averaged.cols; x++) {
+			if (averaged.at<uchar>(y, x) > 170) {
+				// change this to to 'src.atuchar>(y,x) == 255' 
+				// if your img has only 1 channel
+				//cout << "add white" << endl;
+				filtered.at<float>(y, x) = 255;
+				count_black++;
+			}
+		}
+
+	}
+	int erosion_size = 1;
+	Mat element = getStructuringElement(2, Size(2 * erosion_size + 1, 2 * erosion_size + 1), Point(erosion_size, erosion_size));
+	cout << count_black << endl;
+	dilate(filtered, filtered, element);
+	dilate(filtered, filtered, element);
+	erode(filtered, filtered, element);
+	erode(filtered, filtered, element);
+	return filtered;
+}
+int counter(void) {
+	string line;
+	ifstream myfile("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/counter.txt");
+	if (myfile.is_open())
+	{
+		while (getline(myfile, line))
+		{
+			//cout << line << '\n';
+		}
+		myfile.close();
+	}
+	else cout << "Unable to open file";
+
+	int count = stoi(line.c_str());
+	count = count + 1;
+
+	ofstream myfileIn("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/counter.txt");
+	if (myfileIn.is_open())
+	{
+		myfileIn << count;
+		myfileIn.close();
+	}
+	else cout << "Unable to open file";
+
+	return count;
+}
+float reset(float count) {
+	char input;
+	cout << "Count: " << count << endl << "Do you want to reset y/n" << endl;
+	cin >> input;
+	if (input == 'y') {
+		string line;
+		cout << "Counter reset" << endl;
+		int count;
+		count = -1;
+
+		ofstream myfileIn("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/counter.txt");
+		if (myfileIn.is_open())
+		{
+			myfileIn << count;
+			myfileIn.close();
+		}
+		else cout << "Unable to open file";
+
+	}
+	else { cout << "Counter not reset" << endl; }
+	return count;
+}
+
+float accuracy(Mat trained, Mat check) {
+	Mat filtered = Mat(trained.rows, trained.cols, CV_32F);
+	for (int y = 0; y < trained.rows; y++) {
+		for (int x = 0; x < trained.cols; x++) {
+			if (check.at<uchar>(y, x) > 10) {
+				filtered.at<float>(y, x) = 255;
+			}
+			else {
+				filtered.at<float>(y, x) = 0;
+			}
+		}
+	}
+
+	//cout << "new Mat made" << endl;
+	float sameWhitePixels = 0;
+	float totalWhite = 0;
+	float excessWhite = 0;
+	float sameColour = 0;
+	float whitePixelsTrained = 0;
+	float whitePixelsFiltered = 0;
+	//imshow(leftMerged, filtered);
+	for (int y = 0; y < trained.rows; y++) {
+		for (int x = 0; x < trained.cols; x++) {
+			if ((filtered.at<float>(y, x) == 255) ^ ((trained.at<uchar>(y, x)) == 255)) {
+				excessWhite++;
+			}
+			if ((filtered.at<float>(y, x) == 255) || (trained.at<uchar>(y, x)) == 255) {
+				totalWhite++;
+			}
+			//cout << "total pixels counted" << endl;
+
+			//cout << filtered.at<float>(y, x) <<","<<colour<< endl;
+			if (((filtered.at<float>(y, x)) ==255)&& ((trained.at<uchar>(y, x))==255)){
+				//cout << "filtered" << endl;
+				sameWhitePixels++;
+			}
+			if ((trained.at<uchar>(y, x)) == 255) {
+				//cout << "filtered" << endl;
+				whitePixelsTrained++;
+			}
+			if (((filtered.at<float>(y, x)) == 255)) {
+				//cout << "filtered" << endl;
+				whitePixelsFiltered++;
+			}
+			if (filtered.at<float>(y, x) ==  (trained.at<uchar>(y, x))) {
+				//cout << "filtered" << endl;
+				sameColour++;
+			}
+		}
+	}
+	cout <<totalWhite<<","<<sameWhitePixels <<","<<excessWhite<<","<<sameColour<< "."<<whitePixelsFiltered<<"."<<whitePixelsTrained<<endl;
+	float output = ((sameWhitePixels / totalWhite)*100*(totalWhite/excessWhite)*(sameColour/100000));
+	//cout << output << endl;
+	return output;
 }

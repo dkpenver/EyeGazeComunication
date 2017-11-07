@@ -1,4 +1,3 @@
-
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -249,6 +248,7 @@ Mat detectFace(Mat& frame)
 	}
 	else {
 		//cout << "No eyes" << endl;
+
 		return capture_image();
 	}
 }
@@ -292,7 +292,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 		Point eye_center_normal(eyeNormalX[j], eyeNormalY[j]);
 		int radius = cvRound(eyeNormalRadius[j]);
 
-		//circle(frame, eye_center_normal, radius, Scalar(255, 0, 0), 4, 8, 0);
+		circle(frame, eye_center_normal, radius, Scalar(255, 0, 0), 4, 8, 0);
 
 
 	}
@@ -307,7 +307,7 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 
 		Point eye_center_left(eyeLeftX[j], eyeLeftY[j]);
 		int radius = cvRound(eyeLeftRadius[j]);
-		//circle(frame, eye_center_left, radius, Scalar(0, 255, 0), 4, 8, 0);
+		circle(frame, eye_center_left, radius, Scalar(0, 255, 0), 4, 8, 0);
 
 
 	}
@@ -322,11 +322,13 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 
 		Point eye_center_right(eyeRightX[j], eyeRightY[j]);
 		int radius = cvRound(eyeRightRadius[j]);
-		//circle(frame, eye_center_right, radius, Scalar(0, 0, 255), 4, 8, 0);
+		circle(frame, eye_center_right, radius, Scalar(0, 0, 255), 4, 8, 0);
 
 
 	}
-
+	resize(frame, frame, Size(1000, 600), 2, 2);
+	imshow(window_name,frame);
+	waitKey(0);
 	//turquose for mouth
 	/*smile_cascade.detectMultiScale(faceROI, smile, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
 	for (size_t j = 0; j < smile.size(); j++)
@@ -334,12 +336,10 @@ Mat eyeLocation(Mat& frame, Mat& frame_gray, std::vector<Rect> faces, size_t loc
 		mouthX[j] = faces[i].x + smile[j].x + smile[j].width / 2;
 		mouthY[j] = faces[i].y + smile[j].y + smile[j].height / 2;
 		mouthRadius[j] = (smile[j].width + smile[j].height)*0.25;
-
 		Point mouth_center(mouthX[j], mouthY[j]);
 		int radius = cvRound(mouthRadius[j]);
 		//circle(frame, mouth_center, radius, Scalar(255, 255,0 ), 4, 8, 0);
 		int p = j;
-
 	}*/
 	//cout << "parts found" << endl;
 	int eyesX[80];
@@ -705,7 +705,17 @@ float accuracy(Mat trained, Mat check) {
 			}
 		}
 	}
-	cout <<totalWhite<<","<<sameWhitePixels <<","<<excessWhite<<","<<sameColour<< "."<<whitePixelsFiltered<<"."<<whitePixelsTrained<<endl;
+	ofstream myfileIn;
+	myfileIn.open("C:/Users/Kurt/Documents/Visual Studio 2015/Projects/EyeGazeComunication/images/data.txt", ios::app);
+	if (myfileIn.is_open())
+	{
+		myfileIn << totalWhite << endl << sameWhitePixels << endl << excessWhite << endl <<endl;
+		myfileIn.close();
+	}
+	else cout << "Unable to open file";
+
+	//waitKey(0);
+	cout << totalWhite << "," << sameWhitePixels << "," << excessWhite << "," << sameColour << "," << whitePixelsFiltered << "," << whitePixelsTrained << endl;
 	float output = ((sameWhitePixels / totalWhite)*100*(totalWhite/excessWhite)*(sameColour/100000));
 	//cout << output << endl;
 	return output;
